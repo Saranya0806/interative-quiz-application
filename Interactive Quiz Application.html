@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .quiz-container {
+            max-width: 600px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .answer-btn {
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .answer-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .correct {
+            background-color: #22c55e !important; /* Green 500 */
+            color: white;
+            border-color: #16a34a;
+        }
+        .incorrect {
+            background-color: #ef4444 !important; /* Red 500 */
+            color: white;
+            border-color: #dc2626;
+        }
+        .review-correct {
+            background-color: #dcfce7; /* Green 100 */
+            border-left-color: #22c55e;
+            border-left-width: 4px;
+        }
+        .review-incorrect {
+            background-color: #fee2e2; /* Red 100 */
+            border-left-color: #ef4444;
+            border-left-width: 4px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen py-12">
+
+    <div id="quiz-container" class="quiz-container bg-white w-full mx-4 p-6 sm:p-8 rounded-2xl">
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="text-center">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-4">Welcome to the Quiz!</h1>
+            <p class="text-gray-600 mb-8">Test your knowledge. You have 30 seconds per question.</p>
+            <button id="start-btn" class="w-full sm:w-auto bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700 transition duration-300 shadow-lg">Start Quiz</button>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div id="quiz-screen" class="hidden">
+            <div class="flex justify-between items-center mb-4">
+                <p id="question-counter" class="text-gray-600 text-sm">Question 1/10</p>
+                <div id="timer" class="bg-indigo-100 text-indigo-700 font-bold text-lg rounded-full w-12 h-12 flex items-center justify-center">15</div>
+            </div>
+            <div id="question-container" class="mb-6">
+                <h2 id="question-text" class="text-xl sm:text-2xl font-semibold text-gray-800"></h2>
+            </div>
+            <div id="answer-buttons" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Answer buttons will be inserted here by JS -->
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="hidden text-center">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-4">Quiz Completed!</h1>
+            <p id="score-text" class="text-xl text-gray-600 mb-8">You scored 0 out of 0.</p>
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <button id="restart-btn" class="w-full sm:w-auto bg-gray-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-gray-700 transition duration-300 shadow-lg">Play Again</button>
+                <button id="review-btn" class="w-full sm:w-auto bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700 transition duration-300 shadow-lg">Review Answers</button>
+            </div>
+        </div>
+
+        <!-- Review Screen -->
+        <div id="review-screen" class="hidden">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-6 text-center">Review Your Answers</h1>
+            <div id="review-content" class="space-y-6 mb-8">
+                <!-- Review content will be inserted here by JS -->
+            </div>
+            <div class="text-center">
+                <button id="play-again-from-review-btn" class="w-full sm:w-auto bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700 transition duration-300 shadow-lg">Play Again</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const reviewBtn = document.getElementById('review-btn');
+        const playAgainFromReviewBtn = document.getElementById('play-again-from-review-btn');
+        
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const reviewScreen = document.getElementById('review-screen');
+        
+        const questionCounter = document.getElementById('question-counter');
+        const timerElement = document.getElementById('timer');
+        const questionText = document.getElementById('question-text');
+        const answerButtons = document.getElementById('answer-buttons');
+        const scoreText = document.getElementById('score-text');
+        const reviewContent = document.getElementById('review-content');
+
+        // --- Quiz Questions ---
+        const questions = [
+            {
+                question: "What is the capital of Japan?",
+                answers: [ { text: "Seoul", correct: false }, { text: "Beijing", correct: false }, { text: "Tokyo", correct: true }, { text: "Bangkok", correct: false }]
+            },
+            {
+                question: "Which planet is known as the Red Planet?",
+                answers: [ { text: "Mars", correct: true }, { text: "Venus", correct: false }, { text: "Jupiter", correct: false }, { text: "Saturn", correct: false }]
+            },
+            {
+                question: "Who wrote 'Romeo and Juliet'?",
+                answers: [ { text: "Charles Dickens", correct: false }, { text: "William Shakespeare", correct: true }, { text: "Jane Austen", correct: false }, { text: "Mark Twain", correct: false }]
+            },
+            {
+                question: "What is the largest ocean on Earth?",
+                answers: [ { text: "Atlantic Ocean", correct: false }, { text: "Indian Ocean", correct: false }, { text: "Arctic Ocean", correct: false }, { text: "Pacific Ocean", correct: true }]
+            },
+            {
+                question: "What is the chemical symbol for gold?",
+                answers: [ { text: "Ag", correct: false }, { text: "Au", correct: true }, { text: "Fe", correct: false }, { text: "Pb", correct: false }]
+            }
+        ];
+
+        // --- Quiz State ---
+        let currentQuestionIndex;
+        let score;
+        let timer;
+        let timerInterval;
+        let userAnswers = [];
+
+        // --- Event Listeners ---
+        startBtn.addEventListener('click', startQuiz);
+        restartBtn.addEventListener('click', startQuiz);
+        reviewBtn.addEventListener('click', showReview);
+        playAgainFromReviewBtn.addEventListener('click', startQuiz);
+
+        // --- Functions ---
+
+        /**
+         * Starts the quiz by resetting state and showing the first question.
+         */
+        function startQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            userAnswers = [];
+            startScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            reviewScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            setNextQuestion();
+        }
+
+        /**
+         * Sets up and displays the next question in the quiz.
+         */
+        function setNextQuestion() {
+            resetState();
+            if (currentQuestionIndex < questions.length) {
+                showQuestion(questions[currentQuestionIndex]);
+                questionCounter.textContent = `Question ${currentQuestionIndex + 1}/${questions.length}`;
+                startTimer();
+            } else {
+                showResult();
+            }
+        }
+
+        /**
+         * Displays the current question and its answer options.
+         * @param {object} question - The question object to display.
+         */
+        function showQuestion(question) {
+            questionText.textContent = question.question;
+            question.answers.forEach(answer => {
+                const button = document.createElement('button');
+                button.textContent = answer.text;
+                button.classList.add('answer-btn', 'w-full', 'p-3', 'rounded-lg', 'border-2', 'border-gray-300', 'bg-white', 'text-gray-700', 'font-semibold', 'text-left');
+                if (answer.correct) {
+                    button.dataset.correct = answer.correct;
+                }
+                button.addEventListener('click', selectAnswer);
+                answerButtons.appendChild(button);
+            });
+        }
+        
+        /**
+         * Resets the state before showing a new question (clears buttons, stops timer).
+         */
+        function resetState() {
+            clearInterval(timerInterval);
+            while (answerButtons.firstChild) {
+                answerButtons.removeChild(answerButtons.firstChild);
+            }
+        }
+
+        /**
+         * Starts the timer for the current question.
+         */
+        function startTimer() {
+            timer = 30;
+            timerElement.textContent = timer;
+            timerInterval = setInterval(() => {
+                timer--;
+                timerElement.textContent = timer;
+                if (timer <= 0) {
+                    clearInterval(timerInterval);
+                    handleTimeout();
+                }
+            }, 1000);
+        }
+        
+        /**
+         * Handles the logic when the timer for a question runs out.
+         */
+        function handleTimeout() {
+            userAnswers.push(null); // Record that no answer was given
+            Array.from(answerButtons.children).forEach(button => {
+                if (button.dataset.correct) {
+                     button.classList.add('correct');
+                }
+                button.disabled = true;
+            });
+            
+            setTimeout(() => {
+                currentQuestionIndex++;
+                setNextQuestion();
+            }, 2000);
+        }
+
+        /**
+         * Handles the user's selection of an answer.
+         * @param {Event} e - The click event from the answer button.
+         */
+        function selectAnswer(e) {
+            clearInterval(timerInterval);
+            const selectedButton = e.target;
+            const correct = selectedButton.dataset.correct === 'true';
+
+            userAnswers.push(selectedButton.textContent); // Record user's answer text
+
+            if (correct) {
+                score++;
+            }
+            setStatusClass(selectedButton, correct);
+
+            Array.from(answerButtons.children).forEach(button => {
+                if (button.dataset.correct === 'true') {
+                    setStatusClass(button, true);
+                }
+                button.disabled = true;
+            });
+
+            setTimeout(() => {
+                currentQuestionIndex++;
+                setNextQuestion();
+            }, 2000);
+        }
+
+        /**
+         * Sets the visual feedback (CSS class) for a button based on correctness.
+         * @param {HTMLElement} element - The button element.
+         * @param {boolean} correct - Whether the answer is correct.
+         */
+        function setStatusClass(element, correct) {
+            clearStatusClass(element);
+            element.classList.add(correct ? 'correct' : 'incorrect');
+        }
+        
+        /**
+         * Clears any status classes (correct/incorrect) from a button.
+         * @param {HTMLElement} element - The button element.
+         */
+        function clearStatusClass(element) {
+            element.classList.remove('correct', 'incorrect');
+        }
+
+        /**
+         * Displays the final score and result screen.
+         */
+        function showResult() {
+            quizScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+            scoreText.textContent = `You scored ${score} out of ${questions.length}!`;
+        }
+
+        /**
+         * Shows the review screen with all questions and answers.
+         */
+        function showReview() {
+            resultScreen.classList.add('hidden');
+            reviewScreen.classList.remove('hidden');
+            reviewContent.innerHTML = ''; // Clear previous review content
+
+            questions.forEach((question, index) => {
+                const userAnswer = userAnswers[index];
+                
+                const questionDiv = document.createElement('div');
+                questionDiv.classList.add('p-4', 'rounded-lg', 'bg-gray-50', 'border', 'border-gray-200');
+
+                const questionTitle = document.createElement('h3');
+                questionTitle.textContent = `${index + 1}. ${question.question}`;
+                questionTitle.classList.add('font-semibold', 'text-gray-800', 'mb-3');
+                questionDiv.appendChild(questionTitle);
+                
+                const answersList = document.createElement('ul');
+                answersList.classList.add('space-y-2');
+                
+                question.answers.forEach(answer => {
+                    const li = document.createElement('li');
+                    li.textContent = answer.text;
+                    li.classList.add('p-2', 'rounded');
+
+                    // Highlight the correct answer
+                    if(answer.correct) {
+                        li.classList.add('review-correct');
+                        li.textContent += ' (Correct Answer)';
+                    }
+                    // Highlight the user's incorrect answer
+                    else if(answer.text === userAnswer) {
+                        li.classList.add('review-incorrect');
+                        li.textContent += ' (Your Answer)';
+                    }
+                    
+                    answersList.appendChild(li);
+                });
+
+                if (userAnswer === null) {
+                    const li = document.createElement('li');
+                    li.textContent = "You did not answer this question.";
+                    li.classList.add('p-2', 'rounded', 'review-incorrect');
+                    answersList.appendChild(li);
+                }
+
+                questionDiv.appendChild(answersList);
+                reviewContent.appendChild(questionDiv);
+            });
+        }
+    </script>
+</body>
+</html>
